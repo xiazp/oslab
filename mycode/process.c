@@ -12,11 +12,12 @@ int main(int argc, char * argv[])
 {
 	int i,exit_code;
 	pid_t pid[4],pid_chid;
-	char param[][3]={
-		{10, 1, 0},
-		{10, 0, 1},
-		{10, 1, 1},
-		{10, 1, 9},
+const int total_time=20;
+	int param[][3]={
+		{total_time, 1, 0},
+		{total_time, 0, 1},
+		{total_time, 1, 1},
+		{total_time, 1, 9},
 	};
 
 	memset(pid,0,sizeof(pid));

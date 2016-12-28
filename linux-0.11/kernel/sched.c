@@ -115,8 +115,10 @@ void schedule(void)
 					(*p)->alarm = 0;
 				}
 			if (((*p)->signal & ~(_BLOCKABLE & (*p)->blocked)) &&
-			(*p)->state==TASK_INTERRUPTIBLE)
+			(*p)->state==TASK_INTERRUPTIBLE){
 				(*p)->state=TASK_RUNNING;
+				fprintk(3, "%ld\t%c\t%ld\n", (*p)->pid, 'J', jiffies); //向log文件输出跟踪进程运行轨迹
+			}
 		}
 
 /* this is the scheduler proper: */
@@ -132,17 +134,30 @@ void schedule(void)
 			if ((*p)->state == TASK_RUNNING && (*p)->counter > c)
 				c = (*p)->counter, next = i;
 		}
+
 		if (c) break;
 		for(p = &LAST_TASK ; p > &FIRST_TASK ; --p)
 			if (*p)
 				(*p)->counter = ((*p)->counter >> 1) +
 						(*p)->priority;
 	}
+
+	if(task[next]->pid !=current->pid ){
+		if(current->state == TASK_RUNNING){
+			fprintk(3, "%ld\t%c\t%ld\t%ld\n", current->pid, 'J', jiffies, current->counter); //向log文件输出跟踪进程运行轨迹
+		}
+		if(task[next]->state == TASK_RUNNING){
+			fprintk(3, "%ld\t%c\t%ld\n", task[next]->pid, 'R', jiffies); //向log文件输出跟踪进程运行轨迹
+		}
+	}
 	switch_to(next);
 }
 
 int sys_pause(void)
 {
+	if(current->state != TASK_INTERRUPTIBLE){
+		fprintk(3, "%ld\t%c\t%ld\n", current->pid, 'W', jiffies); //向log文件输出跟踪进程运行轨迹
+	}
 	current->state = TASK_INTERRUPTIBLE;
 	schedule();
 	return 0;
@@ -154,14 +169,21 @@ void sleep_on(struct task_struct **p)
 
 	if (!p)
 		return;
+
+
 	if (current == &(init_task.task))
 		panic("task[0] trying to sleep");
 	tmp = *p;
 	*p = current;
+	if(current->state != TASK_UNINTERRUPTIBLE)
+		fprintk(3, "%ld\t%c\t%ld\n", current->pid, 'W', jiffies);
 	current->state = TASK_UNINTERRUPTIBLE;
 	schedule();
-	if (tmp)
+	if (tmp){
+		if(tmp->state != TASK_RUNNING)
+			fprintk(3, "%ld\t%c\t%ld\n", tmp->pid, 'J', jiffies); //向log文件输出跟踪进程运行轨迹
 		tmp->state=0;
+	}
 }
 
 void interruptible_sleep_on(struct task_struct **p)
@@ -170,24 +192,33 @@ void interruptible_sleep_on(struct task_struct **p)
 
 	if (!p)
 		return;
+
 	if (current == &(init_task.task))
 		panic("task[0] trying to sleep");
 	tmp=*p;
 	*p=current;
-repeat:	current->state = TASK_INTERRUPTIBLE;
+
+repeat:
+	if(	current->state != TASK_INTERRUPTIBLE)
+		fprintk(3, "%ld\t%c\t%ld\n", current->pid, 'W', jiffies); //向log文件输出跟踪进程运行轨迹
+	current->state = TASK_INTERRUPTIBLE;
 	schedule();
 	if (*p && *p != current) {
 		(**p).state=0;
 		goto repeat;
 	}
 	*p=NULL;
-	if (tmp)
+	if (tmp){
+		if(tmp->state!=TASK_RUNNING)
+			fprintk(3, "%ld\t%c\t%ld\n", tmp->pid, 'J', jiffies); //向log文件输出跟踪进程运行轨迹
 		tmp->state=0;
+	}
 }
 
 void wake_up(struct task_struct **p)
 {
 	if (p && *p) {
+		fprintk(3, "%ld\t%c\t%ld\n", (*p)->pid, 'W', jiffies); //向log文件输出跟踪进程运行轨迹
 		(**p).state=0;
 		*p=NULL;
 	}

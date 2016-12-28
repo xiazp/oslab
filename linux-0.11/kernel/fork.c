@@ -111,6 +111,10 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 	p->tss.gs = gs & 0xffff;
 	p->tss.ldt = _LDT(nr);
 	p->tss.trace_bitmap = 0x80000000;
+
+	fprintk(3, "%ld\t%c\t%ld\n", p->pid, 'N', jiffies); //向log文件输出跟踪进程运行轨迹
+
+
 	if (last_task_used_math == current)
 		__asm__("clts ; fnsave %0"::"m" (p->tss.i387));
 	if (copy_mem(nr,p)) {
@@ -130,6 +134,9 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 	set_tss_desc(gdt+(nr<<1)+FIRST_TSS_ENTRY,&(p->tss));
 	set_ldt_desc(gdt+(nr<<1)+FIRST_LDT_ENTRY,&(p->ldt));
 	p->state = TASK_RUNNING;	/* do this last, just in case */
+
+	//fprintk(1, "The ID of running process is %ld\n", current->pid); //向stdout打印正在运行的进程的ID
+	fprintk(3, "%ld\t%c\t%ld\n", p->pid, 'J', jiffies); //向log文件输出跟踪进程运行轨迹
 	return last_pid;
 }
 

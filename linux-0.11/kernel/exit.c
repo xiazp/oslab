@@ -129,6 +129,9 @@ int do_exit(long code)
 	current->state = TASK_ZOMBIE;
 	current->exit_code = code;
 	tell_father(current->father);
+
+	fprintk(3, "%ld\t%c\t%ld\n", current->pid, 'E', jiffies); //向log文件输出跟踪进程运行轨迹
+
 	schedule();
 	return (-1);	/* just to suppress warnings */
 }
