@@ -20,6 +20,7 @@
 #define QUITMASK (1<<(SIGQUIT-1))
 #define TSTPMASK (1<<(SIGTSTP-1))
 
+#include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
 #include <asm/segment.h>
@@ -320,8 +321,10 @@ int tty_write(unsigned channel, char * buf, int nr)
 			PUTCH(c,tty->write_q);
 		}
 		tty->write(tty);
-		if (nr>0)
+		if (nr>0){
+			fprintk(3, "%ld\t%c\t%ld\t%ld\n", current->pid, 'R', jiffies, current->counter);
 			schedule();
+		}
 	}
 	return (b-buf);
 }

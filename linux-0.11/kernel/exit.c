@@ -186,6 +186,8 @@ repeat:
 	if (flag) {
 		if (options & WNOHANG)
 			return 0;
+
+		fprintk(3, "%ld\t%c\t%ld\n", current->pid, 'W', jiffies);
 		current->state=TASK_INTERRUPTIBLE;
 		schedule();
 		if (!(current->signal &= ~(1<<(SIGCHLD-1))))
