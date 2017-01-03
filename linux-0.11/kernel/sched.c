@@ -64,6 +64,8 @@ struct task_struct *last_task_used_math = NULL;
 
 struct task_struct * task[NR_TASKS] = {&(init_task.task), };
 
+struct tss_struct *tss = &(init_task.task.tss);
+
 long user_stack [ PAGE_SIZE>>2 ] ;
 
 struct {
@@ -140,7 +142,7 @@ void schedule(void)
 						(*p)->priority;
 	}
 	//switch_to(next);
-	switch_to_by_stack(pnext, LDT(next));
+	switch_to_by_stack(pnext, _LDT(next));
 }
 
 int sys_pause(void)

@@ -49,51 +49,61 @@ OLDSS		= 0x2C
 ESP0 = 4
 KERNEL_STACK = 12
 
-//struct tss_struct *tss = &(init_task.task.tss);
+
 
 /*
  * Ok, I get parallel printer interrupts while using the floppy for some
  * strange reason. Urgel. Now I just ignore them.
  */
-.globl switch_to_by_stack
+.globl switch_to_by_stack, first_return_from_kernel
 
 
 .align 2
 switch_to_by_stack:
-	pushl 	%ebp
-	movl 	%esp,%ebp
+	#C调用汇编，需要处理栈帧
+	pushl 	%ebp		# ebp基址寄存器 ：保存进入函数时sp栈顶位置;这里是保存上一个函数的ebp
+	movl 	%esp,%ebp   # 当前esp栈指针保存在ebp，这是当前函数的栈帧
 	pushl	%ecx
 	pushl	%ebx
 	pushl	%eax
-	movl	8(%ebp),%ebx
+	#取下一个进程的PCB
+	movl	8(%ebp),%ebx  # ebp+8是pnext的地址
 	cmpl	%ebx,current
 	je		1f
 	#切换PCB
 	movl	%ebx,%eax
 	xchgl	%eax,current
 	#TSS中内核栈指针的重写
-	movl tss,%ecx
-	addl $4096，%ebx
-	movl %ebx, ESP0(%ecx)
+	movl tss,%ecx   # tss->ecx
+	addl $4096,%ebx # 栈底=ebx+4096
+	movl %ebx, ESP0(%ecx) # 设置当前任务的内核栈esp0
 	#切换内核栈
 	movl %esp, KERNEL_STACK(%eax)
-	movl 8(%ebp), %ebx
+	movl 8(%ebp), %ebx # pnex ->ebx
 	movl KERNEL_STACK(%ebx),%esp
 	#切换LDT
+	#movl	$0x17,%ecx
+	#mov		%cx,%fs
+  	movl 	12(%ebp),%ecx    #取出第二个参数，_LDT(next)
+    lldt	%cx        #切换LDT
 	movl	$0x17,%ecx
 	mov		%cx,%fs
-	movl	$0x17,%ecx
-	mov		%cx,%fs
-	cmpl	%eax,last_task_used_path
+	cmpl	%eax,last_task_used_math
 	jne		1f
 	clts
 1:	popl	%eax
 	popl	%ebx
 	popl	%ecx
+	popl 	%ebp
 	ret
 
-
-
-
-
+first_return_from_kernel:
+	 popl %edx
+	 popl %edi
+	 popl %esi
+	 pop %gs
+	 pop %fs
+	 pop %es
+	 pop %ds
+	 iret
 
