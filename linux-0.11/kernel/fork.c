@@ -17,6 +17,8 @@
 #include <asm/segment.h>
 #include <asm/system.h>
 
+extern void first_return_from_kernel(void);
+
 extern void write_verify(unsigned long address);
 
 long last_pid=0;
@@ -147,11 +149,9 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 	struct file *f;
 	long *krnstack;
 
-
 	p = (struct task_struct *) get_free_page();
 	if (!p)
 		return -EAGAIN;
-
 
 	task[nr] = p;
 	*p = *current;	/* NOTE! this doesn't copy the supervisor stack */
@@ -175,8 +175,6 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 	*(--krnstack)= cs & 0xffff;
 	*(--krnstack)= eip;
 
-
-
 	 *(--krnstack)= ds& 0xffff;
 	 *(--krnstack)= es& 0xffff;
 	 *(--krnstack)= fs& 0xffff;
@@ -186,16 +184,15 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 	 *(--krnstack)= edx;
 
 	 //完成用户栈和用户代码的切换
-	 *(--krnstack) = (long)first_return_from_kernel();
+	 *(--krnstack) = (long)first_return_from_kernel;
+	*(--krnstack)= ebp;
+	*(--krnstack)= ecx;
+	*(--krnstack)= ebx;
+	*(--krnstack)= 0; //eax=0 表示子进程这里的0最有意思。
 
-		*(--krnstack)= ebp;
-		 *(--krnstack)= ecx;
-		 *(--krnstack)= ebx;
-		 *(--krnstack)= 0; //这里的0最有意思。
+	p->kernelstack=krnstack; //保存当前栈顶
 
-	  p->kernelstack=krnstack; //保存当前栈顶
-
-#else
+//else
 	p->tss.back_link = 0;
 	p->tss.esp0 = PAGE_SIZE + (long) p;
 	p->tss.ss0 = 0x10;
@@ -236,7 +233,10 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 	if (current->executable)
 		current->executable->i_count++;
 	set_tss_desc(gdt+(nr<<1)+FIRST_TSS_ENTRY,&(p->tss));
+
 	set_ldt_desc(gdt+(nr<<1)+FIRST_LDT_ENTRY,&(p->ldt));
+
+
 	p->state = TASK_RUNNING;	/* do this last, just in case */
 	return last_pid;
 }

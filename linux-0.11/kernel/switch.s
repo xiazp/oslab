@@ -66,6 +66,7 @@ switch_to_by_stack:
 	pushl	%ecx
 	pushl	%ebx
 	pushl	%eax
+
 	#取下一个进程的PCB
 	movl	8(%ebp),%ebx  # ebp+8是pnext的地址
 	cmpl	%ebx,current
@@ -91,6 +92,7 @@ switch_to_by_stack:
 	cmpl	%eax,last_task_used_math
 	jne		1f
 	clts
+
 1:	popl	%eax
 	popl	%ebx
 	popl	%ecx
@@ -101,9 +103,9 @@ first_return_from_kernel:
 	 popl %edx
 	 popl %edi
 	 popl %esi
-	 pop %gs
-	 pop %fs
-	 pop %es
-	 pop %ds
+	 pop  %gs
+	 pop  %fs
+	 pop  %es
+	 pop  %ds
 	 iret
 
