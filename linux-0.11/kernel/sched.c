@@ -107,7 +107,7 @@ void schedule(void)
 {
 	int i,next,c;
 	struct task_struct ** p;
-	struct task_struct *pnext;
+	struct task_struct *pnext=&init_task.task;
 
 /* check alarm, wake up any interruptible tasks that have got a signal */
 

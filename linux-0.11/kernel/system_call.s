@@ -45,13 +45,16 @@ EFLAGS		= 0x24
 OLDESP		= 0x28
 OLDSS		= 0x2C
 
+ESP0 = 4 #
+KERNEL_STACK = 12  #add kernel stack offset
+
 state	= 0		# these are offsets into the task-struct.
 counter	= 4
 priority = 8
-# KERNEL_STACK = 12
+kernalstack = 12
 signal	= 16   # 12
 sigaction =20  # 16		# MUST be 16 (=len of sigaction)
-blocked = (33*16)
+blocked = ((33*16)+4)
 
 # offsets within sigaction
 sa_handler = 0
@@ -68,6 +71,7 @@ nr_system_calls = 72
 .globl system_call,sys_fork,timer_interrupt,sys_execve
 .globl hd_interrupt,floppy_interrupt,parallel_interrupt
 .globl device_not_available, coprocessor_error
+.globl switch_to_by_stack,first_return_from_kernel
 
 .align 2
 bad_sys_call:
@@ -93,7 +97,7 @@ system_call:
 	movl $0x17,%edx		# fs points to local data space
 	mov %dx,%fs
 	call sys_call_table(,%eax,4)
-	pushl %eax
+	pushl %eax			#sub process pid
 	movl current,%eax
 	cmpl $0,state(%eax)		# state
 	jne reschedule
@@ -284,3 +288,55 @@ parallel_interrupt:
 	outb %al,$0x20
 	popl %eax
 	iret
+
+.align 2
+switch_to_by_stack:
+	#C调用汇编，需要处理栈帧
+	pushl 	%ebp		# ebp基址寄存器 ：保存进入函数时sp栈顶位置;这里是保存上一个函数的ebp
+	movl 	%esp,%ebp   # 当前esp栈指针保存在ebp，这是当前函数的栈帧
+	pushl	%ecx
+	pushl	%ebx
+	pushl	%eax
+
+	#取下一个进程的PCB
+	movl	8(%ebp),%ebx  # ebp+8是pnext的地址
+	cmpl	%ebx,current
+	je		1f
+	#切换PCB
+	movl	%ebx,%eax
+	xchgl	%eax,current
+	#TSS中内核栈指针的重写
+	movl tss,	%ecx   # tss->ecx
+	addl $4096,	%ebx # 栈底=ebx+4096
+	movl %ebx, 	ESP0(%ecx) # 设置当前任务的内核栈esp0
+	#切换内核栈
+	movl %esp, KERNEL_STACK(%eax)
+	movl 8(%ebp), %ebx # pnex ->ebx
+	movl KERNEL_STACK(%ebx),%esp
+	#切换LDT
+	#movl	$0x17,%ecx
+	#mov		%cx,%fs
+  	movl 	12(%ebp),%ecx    #取出第二个参数，_LDT(next)
+    lldt	%cx        #切换LDT
+	movl	$0x17,%ecx
+	mov		%cx,%fs
+	cmpl	%eax,last_task_used_math
+	jne		1f
+	clts
+
+1:	popl	%eax
+	popl	%ebx
+	popl	%ecx
+	popl 	%ebp
+	ret
+
+first_return_from_kernel:
+	 popl %edx
+	 popl %edi
+	 popl %esi
+	 pop  %gs
+	 pop  %fs
+	 pop  %es
+	 pop  %ds
+	 iret
+

@@ -167,32 +167,31 @@ int copy_process(int nr,long ebp,long edi,long esi,long gs,long none,
 	p->start_time = jiffies;
 
 #if 1
-	krnstack = (long ) (PAGE_SIZE + (long) p);
-	//子进程的内核栈按照以下顺序初始化
-	*(--krnstack)= ss & 0xffff;
-	*(--krnstack)= esp;
-	*(--krnstack)= eflags;
-	*(--krnstack)= cs & 0xffff;
-	*(--krnstack)= eip;
+	krnstack = (long*)(PAGE_SIZE +(long)p);
+	*(--krnstack) = ss & 0xffff;
+	*(--krnstack) = esp;
+	*(--krnstack) = eflags;
+	*(--krnstack) = cs & 0xffff;
+	*(--krnstack) = eip;
 
-	 *(--krnstack)= ds& 0xffff;
-	 *(--krnstack)= es& 0xffff;
-	 *(--krnstack)= fs& 0xffff;
-	 *(--krnstack)= gs& 0xffff;
-	 *(--krnstack)= esi;
-	 *(--krnstack)= edi;
-	 *(--krnstack)= edx;
+	*(--krnstack) = ds & 0xffff;
+	*(--krnstack) = es & 0xffff;
+	*(--krnstack) = fs & 0xffff;
+	*(--krnstack) = gs & 0xffff;
+	*(--krnstack) = esi;
+	*(--krnstack) = edi;
+	*(--krnstack) = edx;
 
-	 //完成用户栈和用户代码的切换
-	 *(--krnstack) = (long)first_return_from_kernel;
-	*(--krnstack)= ebp;
-	*(--krnstack)= ecx;
-	*(--krnstack)= ebx;
-	*(--krnstack)= 0; //eax=0 表示子进程这里的0最有意思。
+	*(--krnstack) = (long)first_return_from_kernel;
+	*(--krnstack) = ebp;
+	*(--krnstack) = ecx;
+	*(--krnstack) = ebx;
+	*(--krnstack) = 0;
+	p->kernelstack = krnstack;
 
-	p->kernelstack=krnstack; //保存当前栈顶
 
-//else
+
+//#else
 	p->tss.back_link = 0;
 	p->tss.esp0 = PAGE_SIZE + (long) p;
 	p->tss.ss0 = 0x10;
